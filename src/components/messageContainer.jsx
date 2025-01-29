@@ -3,17 +3,16 @@ import React from "react";
 import { ScrollArea } from "./ui/scroll-area";
 import Conversation from "./conversation";
 import { useRef, useEffect, useState } from "react";
-import { getConversation } from "@/api/Database/getCoversation";
 import { useId } from "react";
 import { addMessage } from "@/api/Database/addMessage";
 import { Input } from "@/components/ui/input";
 import { Send } from "lucide-react";
-
-function MessageContainer({ thisUser, useruid }) {
+import supabase from "@/api/db";
+function MessageContainer({ thisUser, useruid, messages }) {
   const scrollAreaRef = useRef(null);
   const id = useId();
   const [message, setMessage] = useState("");
-  const [data, setData] = useState([]);
+  const [data, setData] = useState(messages);
 
   const scrollToBottom = () => {
     if (scrollAreaRef.current) {
@@ -34,7 +33,7 @@ function MessageContainer({ thisUser, useruid }) {
     if (!message.trim()) return;
 
     try {
-      await addMessage(message, useruid);
+      let msg = message;
       const newMessage = {
         sender_uid: thisUser,
         receiver_uid: useruid,
@@ -47,8 +46,8 @@ function MessageContainer({ thisUser, useruid }) {
           (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
         )
       );
-
       setMessage("");
+      await addMessage(msg, useruid);
     } catch (error) {
       console.error("Error sending message:", error);
     }
@@ -72,21 +71,31 @@ function MessageContainer({ thisUser, useruid }) {
   }, [data]); // Add data as dependency to scroll on new messages
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const data0 = await getConversation(useruid);
-        const data1 = await getConversation(thisUser);
-        setData((prev) =>
-          [...data0, ...data1].sort(
-            (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
-          )
-        );
-      } catch (error) {
-        console.error("Error fetching conversation:", error);
-      }
+    // Subscribe to real-time updates
+    const channel = supabase
+      .channel(`messages_${useruid}_${thisUser}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "message" },
+        (payload) => {
+          const newMessage = payload.new;
+          console.log("here");
+
+          setData((prev) =>
+            [...prev, newMessage].sort(
+              (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
+            )
+          );
+          console.log(data);
+        }
+      )
+      .subscribe();
+
+    // Cleanup on unmount
+    return () => {
+      supabase.removeChannel(channel);
     };
-    fetchData();
-  }, [useruid]);
+  }, []);
 
   return (
     <>
@@ -95,7 +104,20 @@ function MessageContainer({ thisUser, useruid }) {
           ref={scrollAreaRef}
           className="h-full border rounded-md px-2 py-4"
         >
-          <Conversation thisUser={thisUser} useruid={useruid} data={data} />
+          <div className="flex flex-col gap-2">
+            {data.map((val, i) => (
+              <div
+                key={i}
+                className={`${
+                  thisUser === val.sender_uid
+                    ? "self-end bg-popover"
+                    : "bg-ring"
+                }  text-lg border max-w-sm md:max-w-md lg:max-w-2xl rounded-lg p-2`}
+              >
+                {val.content}
+              </div>
+            ))}
+          </div>
         </ScrollArea>
       </div>
 

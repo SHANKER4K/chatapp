@@ -1,6 +1,8 @@
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import supabase from "@/api/db";
 export default function PrivatePage() {
+  
   return (
     <div className="flex flex-col justify-center items-center h-screen border p-2 gap-10 ">
       <div className="text-xl">Welcome to my chatApp</div>
