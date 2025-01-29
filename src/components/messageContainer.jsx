@@ -1,7 +1,6 @@
 "use client";
 import React from "react";
 import { ScrollArea } from "./ui/scroll-area";
-import Conversation from "./conversation";
 import { useRef, useEffect, useState } from "react";
 import { useId } from "react";
 import { addMessage } from "@/api/Database/addMessage";
@@ -40,14 +39,8 @@ function MessageContainer({ thisUser, useruid, messages }) {
         content: message,
         timestamp: new Date().toISOString(),
       };
-
-      setData((prev) =>
-        [...prev, newMessage].sort(
-          (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
-        )
-      );
-      setMessage("");
       await addMessage(msg, useruid);
+      setMessage("");
     } catch (error) {
       console.error("Error sending message:", error);
     }

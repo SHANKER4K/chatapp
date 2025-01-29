@@ -1,34 +1,24 @@
 "use server";
-import { createClient } from "@/utils/supabase/server";
+import supabase from "../db";
 
-export const getConversation = async (receiver_uid) => {
-  const supabase = await createClient();
-  console.log(receiver_uid);
-
-  const { data, error } = await supabase
-    .from("conversations")
+export const getConversation = async (thisUser, user) => {
+  const { data: sender_messages, error: error1 } = await supabase
+    .from("message")
     .select("*")
-    .eq("receiver_uid", receiver_uid);
+    .eq("sender_uid", thisUser)
+    .eq("receiver_uid", user)
+    .order("timestamp", { ascending: true });
+  const { data: receiver_messages, error: error2 } = await supabase
+    .from("message")
+    .select("*")
+    .eq("receiver_uid", thisUser)
+    .eq("sender_uid", user)
+    .order("timestamp", { ascending: true });
 
-  let messages = [];
-  if (
-    data &&
-    data[0] &&
-    data[0].messages_id &&
-    data[0].messages_id.length > 0
-  ) {
-    const messageIds = data[0].messages_id;
-    const { data: messagesData, error: messagesError } = await supabase
-      .from("message")
-      .select("*")
-      .in("id", messageIds)
-      .order("timestamp", { ascending: true });
-
-    if (messagesError) {
-      console.log(messagesError);
-    } else {
-      messages = messagesData;
-    }
-  }
-  return messages;
+  if (!error1 && !error2)
+    return [...receiver_messages, ...sender_messages].sort(
+      (a, b) =>
+        new Date(a.timestamp.split(".")[0]) -
+        new Date(b.timestamp.split(".")[0])
+    );
 };

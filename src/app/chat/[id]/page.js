@@ -8,11 +8,7 @@ async function Chat({ params }) {
   let user = await getUserbyId(id);
   user = user[0];
   const thisUser = await getUser();
-  const data0 = await getConversation(id);
-  const data1 = await getConversation(thisUser.user.id);
-  let messages = [...data0, ...data1].sort(
-    (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
-  );
+  let messages = await getConversation(thisUser.user.id, id);
 
   return (
     <div className="h-[100dvh] w-full flex flex-col p-4">
